@@ -1,0 +1,449 @@
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import {
+  REJECTION_REASONS,
+  type FilterState,
+  type SortOption,
+  SORT_OPTIONS,
+  type AdStatus,
+} from "../types.ts";
+import {
+  fetchAdById,
+  fetchAds,
+  approveAd,
+  rejectAd,
+  requestChangesAd,
+} from "../api/ads.ts";
+import { ImageGallery } from "../components/ui/ImageGallery.tsx";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+
+const ItemPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  const [modalType, setModalType] = useState<"reject" | "changes" | null>(null);
+  const [reason, setReason] = useState("");
+  const [comment, setComment] = useState("");
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const listFilters: FilterState = useMemo(() => {
+    const params = new URLSearchParams(location.state?.from || "");
+
+    const rawSort = params.get("sort");
+    const sortValue: SortOption = SORT_OPTIONS.includes(rawSort as SortOption)
+      ? (rawSort as SortOption)
+      : "date_desc";
+
+    return {
+      page: Number(params.get("page")) || 1,
+      limit: Number(params.get("limit")) || 10,
+      status: params.getAll("status") as AdStatus[],
+      categoryId: params.get("categoryId") || "",
+      minPrice: params.get("minPrice") || "",
+      maxPrice: params.get("maxPrice") || "",
+      search: params.get("search") || "",
+      sort: sortValue,
+    };
+  }, [location.state]);
+
+  const {
+    data: ad,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["ad", id],
+    queryFn: () => fetchAdById(id!),
+    enabled: !!id,
+  });
+
+  const { data: adsList } = useQuery({
+    queryKey: ["ads", listFilters],
+    queryFn: () => fetchAds(listFilters),
+    enabled: !!location.state?.from,
+    staleTime: 5 * 60 * 1000,
+  });
+  //   if (!adsList?.ads || !id) return { prev: null, next: null };
+
+  //   const currentIndex = adsList.ads.findIndex(
+  //     (item) => item.id === Number(id)
+  //   );
+  //   if (currentIndex === -1) return { prev: null, next: null };
+
+  //   return {
+  //     prev: adsList.ads[currentIndex - 1]?.id || null,
+  //     next: adsList.ads[currentIndex + 1]?.id || null,
+  //   };
+  // }, [adsList, id]);
+
+  const approveMutation = useMutation({
+    mutationFn: approveAd,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ad", id] });
+      alert("Объявление одобрено");
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: modalType === "reject" ? rejectAd : requestChangesAd,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ad", id] });
+      setModalType(null);
+      setReason("");
+      alert("Решение отправлено!");
+    },
+  });
+
+  const handleSubmitDecision = () => {
+    if (!reason) {
+      return alert("Пожалуйста, выберите причину.");
+    }
+    if (!id) return;
+    rejectMutation.mutate({ id, reason, comment });
+  };
+
+  const handleBack = () => {
+    if (location.state?.from) {
+      navigate(`/list${location.state.from}`);
+    } else {
+      navigate("/list");
+    }
+  };
+
+  const handleNext = async () => {
+    if (!adsList?.ads || !id) return;
+
+    const currentIndex = adsList.ads.findIndex(
+      (item) => item.id === Number(id)
+    );
+
+    if (currentIndex !== -1 && currentIndex < adsList.ads.length - 1) {
+      const nextId = adsList.ads[currentIndex + 1].id;
+      navigate(`/item/${nextId}`, { state: location.state });
+      return;
+    }
+
+    if (adsList.pagination.currentPage < adsList.pagination.totalPages) {
+      setIsNavigating(true);
+      const nextPage = listFilters.page + 1;
+
+      try {
+        const nextData = await queryClient.fetchQuery({
+          queryKey: ["ads", { ...listFilters, page: nextPage }],
+          queryFn: () => fetchAds({ ...listFilters, page: nextPage }),
+        });
+
+        if (nextData.ads.length > 0) {
+          const nextId = nextData.ads[0].id;
+
+          const newParams = new URLSearchParams(location.state.from);
+          newParams.set("page", String(nextPage));
+
+          navigate(`/item/${nextId}`, {
+            state: { from: `?${newParams.toString()}` },
+          });
+        }
+      } finally {
+        setIsNavigating(false);
+      }
+    }
+  };
+
+  const handlePrev = async () => {
+    if (!adsList?.ads || !id) return;
+    const currentIndex = adsList.ads.findIndex(
+      (item) => item.id === Number(id)
+    );
+
+    if (currentIndex > 0) {
+      const prevId = adsList.ads[currentIndex - 1].id;
+      navigate(`/item/${prevId}`, { state: location.state });
+      return;
+    }
+
+    if (listFilters.page > 1) {
+      setIsNavigating(true);
+      const prevPage = listFilters.page - 1;
+
+      try {
+        const prevData = await queryClient.fetchQuery({
+          queryKey: ["ads", { ...listFilters, page: prevPage }],
+          queryFn: () => fetchAds({ ...listFilters, page: prevPage }),
+        });
+
+        if (prevData.ads.length > 0) {
+          const prevId = prevData.ads[prevData.ads.length - 1].id; // Берем ПОСЛЕДНИЙ элемент предыдущей страницы
+
+          const newParams = new URLSearchParams(location.state.from);
+          newParams.set("page", String(prevPage));
+
+          navigate(`/item/${prevId}`, {
+            state: { from: `?${newParams.toString()}` },
+          });
+        }
+      } finally {
+        setIsNavigating(false);
+      }
+    }
+  };
+
+  if (isLoading)
+    return <div className="p-10 text-center">Загрузка объявления</div>;
+  if (isError || !ad)
+    return <div className="p-10 text-center text-red-500">Ошибка загрузки</div>;
+
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <button onClick={handleBack} className="text-gray-600 hover:underline">
+          ⬅ Назад к списку
+        </button>
+      </div>
+
+      <div className="space-x-2">
+        <button
+          className="px-4 py-2 border rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+          disabled={
+            isNavigating ||
+            (listFilters.page === 1 && adsList?.ads[0]?.id === Number(id))
+          }
+          onClick={handlePrev}
+        >
+          Предыдущее
+        </button>
+        <button
+          className="px-4 py-2 border rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+          onClick={handleNext}
+          disabled={
+            isNavigating ||
+            (adsList &&
+              listFilters.page === adsList.pagination.totalPages &&
+              adsList.ads[adsList.ads.length - 1]?.id === Number(id))
+          }
+        >
+          Следующее
+        </button>
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={id}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        >
+          <div className="lg:col-span-2 space-y-6">
+            <ImageGallery images={ad.images} />
+            <div className="bg-white p-6 rounded shadow">
+              <div className="flex justify-between items-start mb-4">
+                <h1 className="text-3xl font-bold">{ad.title}</h1>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-bold
+                    ${
+                      ad.status === "approved"
+                        ? "bg-green-500 text-white"
+                        : ad.status === "rejected"
+                        ? "bg-red-500 text-white"
+                        : "bg-yellow-500 text-white"
+                    }`}
+                >
+                  {ad.status === "approved"
+                    ? "Одобрено"
+                    : ad.status === "rejected"
+                    ? "Отклонено"
+                    : "Отправлено на доработку"}
+                </span>
+              </div>
+              <p className="text-2xl font-bold mb-4">
+                {ad.price
+                  ? ad.price.toLocaleString("ru-RU", {
+                      style: "currency",
+                      currency: "RUB",
+                      maximumFractionDigits: 0,
+                    })
+                  : "Цена не указана"}
+              </p>
+
+              <div className="prose max-w-none mb-6">
+                <h3 className="text-lg font-semibold mb-2">Описание</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {ad.description}
+                </p>
+              </div>
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-3">Характеристики</h3>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {Object.entries(ad.characteristics || {}).map(
+                    ([key, value]) => (
+                      <div key={key} className="contents">
+                        <dt className="text-gray-500">{key}</dt>
+                        <dl className="font-medium">{value}</dl>
+                      </div>
+                    )
+                  )}
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded shadow border">
+              <h3 className="font-bold text-lg mb-4">Продавец</h3>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center font-bold text-blue-600 text-xl">
+                  {ad.seller?.name?.[0] || "?"}
+                </div>
+                <div>
+                  <p className="font-bold">
+                    {ad.seller?.name || "Неизвестный продавец"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {`На сайте с 
+                  ${
+                    ad.seller?.registeredAt
+                      ? new Date(ad.seller.registeredAt).toLocaleDateString()
+                      : "..."
+                  }`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600 border-t pt-2">
+                <span>
+                  Рейтинг: <b>{ad.seller?.rating || 0}</b>
+                </span>
+                <span>
+                  Объявлений: <b>{ad.seller?.totalAds || 0}</b>
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded shadow border-l-4 border-blue-500">
+              <h3 className="font-bold text-lg mb-4">Действия модератора</h3>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => approveMutation.mutate(ad.id.toString())}
+                  disabled={approveMutation.isPending}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition"
+                >
+                  {approveMutation.isPending ? "Обработка..." : "Одобрить"}
+                </button>
+                <button
+                  onClick={() => setModalType("changes")}
+                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 rounded transition"
+                >
+                  На доработку
+                </button>
+
+                <button
+                  onClick={() => setModalType("reject")}
+                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded transition"
+                >
+                  Отклонить
+                </button>
+              </div>
+            </div>
+            {ad.moderationHistory.length > 0 && (
+              <div className="bg-white p-6 rounded shadow">
+                <h3 className="font-bold text-lg mb-4">История решений</h3>
+                <ul className="space-y-4">
+                  {ad.moderationHistory.map((entry, i) => (
+                    <li key={i} className="text-sm border-b last:border-0 pb-2">
+                      <div className="flex justify-between font-bold">
+                        <span>
+                          {entry.action === "approved"
+                            ? "Одобрено"
+                            : entry.action === "rejected"
+                            ? "Отклонено"
+                            : "Отправлено на доработку"}
+                        </span>
+                        <span className="text-gray-400 text-xs">
+                          {new Date(entry.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {entry.reason && (
+                        <p className="text-red-500 mt-1">
+                          Причина: {entry.reason}
+                        </p>
+                      )}
+                      {entry.comment && (
+                        <p className="text-black mt-1">
+                          Комментарий: {entry.comment.toLocaleLowerCase()}
+                        </p>
+                      )}
+                      <p className="text-gray-500 mt-1 text-xs">
+                        Модератор: {entry.moderatorName}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+      {modalType && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-bold mb-4">
+              {modalType === "reject"
+                ? "Отклонение объявления"
+                : "Вернуть на доработку"}
+            </h3>
+
+            <div className="space-y-2 mb-4">
+              <p className="font-medium text-sm text-gray-700">
+                Выберите причину:
+              </p>
+              {REJECTION_REASONS.map((r) => (
+                <label
+                  key={r}
+                  className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded"
+                >
+                  <input
+                    type="radio"
+                    name="reason"
+                    value={r}
+                    checked={reason === r}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+
+            {reason === "Другое" && (
+              <textarea
+                className="w-full border p-3 rounded mb-4 h-24 resize-none focus:ring-blue-500 outline:none"
+                placeholder="Комментарий"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setModalType(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSubmitDecision}
+                disabled={rejectMutation.isPending || !reason}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {rejectMutation.isPending ? "Отправка..." : "Отправить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ItemPage;
