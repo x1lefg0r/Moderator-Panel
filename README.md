@@ -23,8 +23,8 @@
 ### 1\. Клонирование репозитория
 
 ```bash
-git clone [YOUR_REPO_URL]
-cd [PROJECT_FOLDER]
+git clone https://github.com/x1lefg0r/Moderator-Panel.git
+cd [proj_folder]
 ```
 
 ### 2\. Установка зависимостей
