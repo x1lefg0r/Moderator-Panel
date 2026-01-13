@@ -26,6 +26,10 @@ export interface Seller {
   registeredAt: string;
 }
 
+export interface SellerProps {
+  seller: Seller;
+}
+
 export interface ModerationHistory {
   id: number;
   moderatorId: number;
