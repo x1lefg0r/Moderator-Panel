@@ -120,9 +120,6 @@ export const COLORS = {
   blue: "#3b82f6",
 };
 
-export interface ModerationModalProps {
-  type: "reject" | "changes";
-  isOpen: boolean;
-  onClose: () => void;
-  adId: string;
+export interface ModerationHistoryProps {
+  history: ModerationHistory[];
 }
