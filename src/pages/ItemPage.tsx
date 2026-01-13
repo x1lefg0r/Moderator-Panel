@@ -5,22 +5,20 @@ import {
   SORT_OPTIONS,
   type AdStatus,
 } from "../types.ts";
-import { fetchAdById, fetchAds, approveAd } from "../api/ads.ts";
+import { fetchAdById, fetchAds } from "../api/ads.ts";
 import { ImageGallery } from "../components/ui/ImageGallery.tsx";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
 import { ModerationModal } from "../components/modal/ModerationModal.tsx";
-import { UseUIStore } from "../store/useUIStore.ts";
 import { ModerationHistory } from "../components/moderation/ModerationHistory.tsx";
+import { ModerationActions } from "../components/moderation/ModerationActions.tsx";
 
 const ItemPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-
-  const openModerationModal = UseUIStore((state) => state.openModerationModal);
 
   const [isNavigating, setIsNavigating] = useState(false);
 
@@ -59,14 +57,6 @@ const ItemPage = () => {
     queryFn: () => fetchAds(listFilters),
     enabled: !!location.state?.from,
     staleTime: 5 * 60 * 1000,
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: approveAd,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad", id] });
-      alert("Объявление одобрено");
-    },
   });
 
   const handleBack = () => {
@@ -285,31 +275,7 @@ const ItemPage = () => {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded shadow border-l-4 border-blue-500">
-              <h3 className="font-bold text-lg mb-4">Действия модератора</h3>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => approveMutation.mutate(ad.id.toString())}
-                  disabled={approveMutation.isPending}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition"
-                >
-                  {approveMutation.isPending ? "Обработка..." : "Одобрить"}
-                </button>
-                <button
-                  onClick={() => openModerationModal("changes", id!)}
-                  className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 rounded transition"
-                >
-                  На доработку
-                </button>
-
-                <button
-                  onClick={() => openModerationModal("reject", id!)}
-                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded transition"
-                >
-                  Отклонить
-                </button>
-              </div>
-            </div>
+            <ModerationActions />
             {ad.moderationHistory.length > 0 && (
               <ModerationHistory history={ad.moderationHistory} />
             )}
