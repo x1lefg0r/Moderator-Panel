@@ -1,22 +1,17 @@
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
-  REJECTION_REASONS,
   type FilterState,
   type SortOption,
   SORT_OPTIONS,
   type AdStatus,
 } from "../types.ts";
-import {
-  fetchAdById,
-  fetchAds,
-  approveAd,
-  rejectAd,
-  requestChangesAd,
-} from "../api/ads.ts";
+import { fetchAdById, fetchAds, approveAd } from "../api/ads.ts";
 import { ImageGallery } from "../components/ui/ImageGallery.tsx";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo } from "react";
+import { ModerationModal } from "../components/modal/ModerationModal.tsx";
+import { UseUIStore } from "../store/useUIStore.ts";
 
 const ItemPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,9 +19,8 @@ const ItemPage = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
 
-  const [modalType, setModalType] = useState<"reject" | "changes" | null>(null);
-  const [reason, setReason] = useState("");
-  const [comment, setComment] = useState("");
+  const openModerationModal = UseUIStore((state) => state.openModerationModal);
+
   const [isNavigating, setIsNavigating] = useState(false);
 
   const listFilters: FilterState = useMemo(() => {
@@ -65,18 +59,6 @@ const ItemPage = () => {
     enabled: !!location.state?.from,
     staleTime: 5 * 60 * 1000,
   });
-  //   if (!adsList?.ads || !id) return { prev: null, next: null };
-
-  //   const currentIndex = adsList.ads.findIndex(
-  //     (item) => item.id === Number(id)
-  //   );
-  //   if (currentIndex === -1) return { prev: null, next: null };
-
-  //   return {
-  //     prev: adsList.ads[currentIndex - 1]?.id || null,
-  //     next: adsList.ads[currentIndex + 1]?.id || null,
-  //   };
-  // }, [adsList, id]);
 
   const approveMutation = useMutation({
     mutationFn: approveAd,
@@ -85,24 +67,6 @@ const ItemPage = () => {
       alert("Объявление одобрено");
     },
   });
-
-  const rejectMutation = useMutation({
-    mutationFn: modalType === "reject" ? rejectAd : requestChangesAd,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad", id] });
-      setModalType(null);
-      setReason("");
-      alert("Решение отправлено!");
-    },
-  });
-
-  const handleSubmitDecision = () => {
-    if (!reason) {
-      return alert("Пожалуйста, выберите причину.");
-    }
-    if (!id) return;
-    rejectMutation.mutate({ id, reason, comment });
-  };
 
   const handleBack = () => {
     if (location.state?.from) {
@@ -331,14 +295,14 @@ const ItemPage = () => {
                   {approveMutation.isPending ? "Обработка..." : "Одобрить"}
                 </button>
                 <button
-                  onClick={() => setModalType("changes")}
+                  onClick={() => openModerationModal("changes", id!)}
                   className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 rounded transition"
                 >
                   На доработку
                 </button>
 
                 <button
-                  onClick={() => setModalType("reject")}
+                  onClick={() => openModerationModal("reject", id!)}
                   className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded transition"
                 >
                   Отклонить
@@ -384,64 +348,7 @@ const ItemPage = () => {
           </div>
         </motion.div>
       </AnimatePresence>
-      {modalType && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-bold mb-4">
-              {modalType === "reject"
-                ? "Отклонение объявления"
-                : "Вернуть на доработку"}
-            </h3>
-
-            <div className="space-y-2 mb-4">
-              <p className="font-medium text-sm text-gray-700">
-                Выберите причину:
-              </p>
-              {REJECTION_REASONS.map((r) => (
-                <label
-                  key={r}
-                  className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded"
-                >
-                  <input
-                    type="radio"
-                    name="reason"
-                    value={r}
-                    checked={reason === r}
-                    onChange={(e) => setReason(e.target.value)}
-                    className="w-4 h-4 text-blue-600"
-                  />
-                  <span>{r}</span>
-                </label>
-              ))}
-            </div>
-
-            {reason === "Другое" && (
-              <textarea
-                className="w-full border p-3 rounded mb-4 h-24 resize-none focus:ring-blue-500 outline:none"
-                placeholder="Комментарий"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setModalType(null)}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSubmitDecision}
-                disabled={rejectMutation.isPending || !reason}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {rejectMutation.isPending ? "Отправка..." : "Отправить"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModerationModal />
     </div>
   );
 };

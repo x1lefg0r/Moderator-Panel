@@ -119,3 +119,10 @@ export const COLORS = {
   purple: "#8884d8",
   blue: "#3b82f6",
 };
+
+export interface ModerationModalProps {
+  type: "reject" | "changes";
+  isOpen: boolean;
+  onClose: () => void;
+  adId: string;
+}
