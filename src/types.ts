@@ -18,6 +18,10 @@ export interface Advertisement {
   moderationHistory: ModerationHistory[];
 }
 
+export interface AdvertisementProps {
+  ad: Advertisement;
+}
+
 export interface Seller {
   id: number;
   name: string;
@@ -126,4 +130,8 @@ export const COLORS = {
 
 export interface ModerationHistoryProps {
   history: ModerationHistory[];
+}
+
+export interface ModerationActionsProps {
+  adId: string;
 }
