@@ -135,3 +135,12 @@ export interface ModerationHistoryProps {
 export interface ModerationActionsProps {
   adId: string;
 }
+
+export interface LoadingStateProps {
+  message?: string;
+}
+
+export interface ErrorStateProps {
+  message?: string;
+  onRetry?: () => void;
+}
