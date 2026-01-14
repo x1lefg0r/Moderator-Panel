@@ -1,12 +1,12 @@
+import { useState, useMemo, useCallback } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { fetchAds } from "../api/ads";
+import { fetchAds, fetchAdById } from "../api/ads";
 import {
   SORT_OPTIONS,
-  type AdStatus,
   type FilterState,
   type SortOption,
+  type AdStatus,
 } from "../types";
 
 export const useAdNavigation = () => {
@@ -18,7 +18,6 @@ export const useAdNavigation = () => {
 
   const listFilters: FilterState = useMemo(() => {
     const params = new URLSearchParams(location.state?.from || "");
-
     const rawSort = params.get("sort");
     const sortValue: SortOption = SORT_OPTIONS.includes(rawSort as SortOption)
       ? (rawSort as SortOption)
@@ -51,6 +50,40 @@ export const useAdNavigation = () => {
     }
   };
 
+  const prefetchNext = useCallback(async () => {
+    if (!adsList?.ads || !id) return;
+
+    const currentIndex = adsList.ads.findIndex(
+      (item) => item.id === Number(id)
+    );
+
+    if (currentIndex !== -1 && currentIndex < adsList.ads.length - 1) {
+      const nextId = adsList.ads[currentIndex + 1].id;
+
+      await queryClient.prefetchQuery({
+        queryKey: ["ad", String(nextId)],
+        queryFn: () => fetchAdById(String(nextId)),
+      });
+    }
+  }, [adsList, id, queryClient]);
+
+  const prefetchPrev = useCallback(async () => {
+    if (!adsList?.ads || !id) return;
+
+    const currentIndex = adsList.ads.findIndex(
+      (item) => item.id === Number(id)
+    );
+
+    if (currentIndex > 0) {
+      const prevId = adsList.ads[currentIndex - 1].id;
+
+      await queryClient.prefetchQuery({
+        queryKey: ["ad", String(prevId)],
+        queryFn: () => fetchAdById(String(prevId)),
+      });
+    }
+  }, [adsList, id, queryClient]);
+
   const handleNext = async () => {
     if (!adsList?.ads || !id) return;
 
@@ -60,6 +93,14 @@ export const useAdNavigation = () => {
 
     if (currentIndex !== -1 && currentIndex < adsList.ads.length - 1) {
       const nextId = adsList.ads[currentIndex + 1].id;
+
+      setIsNavigating(true);
+      await queryClient.prefetchQuery({
+        queryKey: ["ad", String(nextId)],
+        queryFn: () => fetchAdById(String(nextId)),
+      });
+      setIsNavigating(false);
+
       navigate(`/item/${nextId}`, { state: location.state });
       return;
     }
@@ -77,6 +118,11 @@ export const useAdNavigation = () => {
         if (nextData.ads.length > 0) {
           const nextId = nextData.ads[0].id;
 
+          await queryClient.prefetchQuery({
+            queryKey: ["ad", String(nextId)],
+            queryFn: () => fetchAdById(String(nextId)),
+          });
+
           const newParams = new URLSearchParams(location.state.from);
           newParams.set("page", String(nextPage));
 
@@ -92,12 +138,21 @@ export const useAdNavigation = () => {
 
   const handlePrev = async () => {
     if (!adsList?.ads || !id) return;
+
     const currentIndex = adsList.ads.findIndex(
       (item) => item.id === Number(id)
     );
 
     if (currentIndex > 0) {
       const prevId = adsList.ads[currentIndex - 1].id;
+
+      setIsNavigating(true);
+      await queryClient.prefetchQuery({
+        queryKey: ["ad", String(prevId)],
+        queryFn: () => fetchAdById(String(prevId)),
+      });
+      setIsNavigating(false);
+
       navigate(`/item/${prevId}`, { state: location.state });
       return;
     }
@@ -113,7 +168,12 @@ export const useAdNavigation = () => {
         });
 
         if (prevData.ads.length > 0) {
-          const prevId = prevData.ads[prevData.ads.length - 1].id; // Берем ПОСЛЕДНИЙ элемент предыдущей страницы
+          const prevId = prevData.ads[prevData.ads.length - 1].id;
+
+          await queryClient.prefetchQuery({
+            queryKey: ["ad", String(prevId)],
+            queryFn: () => fetchAdById(String(prevId)),
+          });
 
           const newParams = new URLSearchParams(location.state.from);
           newParams.set("page", String(prevPage));
@@ -147,6 +207,8 @@ export const useAdNavigation = () => {
     handleBack,
     handleNext,
     handlePrev,
+    prefetchNext,
+    prefetchPrev,
     isNavigating,
     canGoPrev,
     canGoNext,
