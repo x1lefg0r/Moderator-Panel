@@ -1,24 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { approveAd, fetchAdById } from "../../api/ads.ts";
 import { UseUIStore } from "../../store/useUIStore";
-import { useParams } from "react-router-dom";
+import type { ModerationActionsProps } from "../../types.ts";
+import toast from "react-hot-toast";
 
-export const ModerationActions = () => {
+export const ModerationActions = ({ adId }: ModerationActionsProps) => {
   const queryClient = useQueryClient();
-  const { id } = useParams<{ id: string }>();
 
   const approveMutation = useMutation({
     mutationFn: approveAd,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad", id] });
-      alert("Объявление одобрено");
+      queryClient.invalidateQueries({ queryKey: ["ad", adId] });
+      toast.success(() => (
+        <span>
+          <b>Объявление одобрено!</b>
+        </span>
+      ));
     },
   });
 
   const { data: ad } = useQuery({
-    queryKey: ["ad", id],
-    queryFn: () => fetchAdById(id!),
-    enabled: !!id,
+    queryKey: ["ad", adId],
+    queryFn: () => fetchAdById(adId!),
+    enabled: !!adId,
   });
 
   const openModerationModal = UseUIStore((state) => state.openModerationModal);
@@ -38,14 +42,14 @@ export const ModerationActions = () => {
           {approveMutation.isPending ? "Обработка..." : "Одобрить"}
         </button>
         <button
-          onClick={() => openModerationModal("changes", id!)}
+          onClick={() => openModerationModal("changes", adId!)}
           className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 rounded transition"
         >
           На доработку
         </button>
 
         <button
-          onClick={() => openModerationModal("reject", id!)}
+          onClick={() => openModerationModal("reject", adId!)}
           className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded transition"
         >
           Отклонить

@@ -3,6 +3,7 @@ import { UseUIStore } from "../../store/useUIStore";
 import { REJECTION_REASONS } from "../../types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { rejectAd, requestChangesAd } from "../../api/ads";
+import toast from "react-hot-toast";
 
 export const ModerationModal = () => {
   const { moderation, closeModerationModal } = UseUIStore();
@@ -11,6 +12,11 @@ export const ModerationModal = () => {
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
   const queryClient = useQueryClient();
+
+  const message =
+    mode === "reject"
+      ? "Объявление отклонено"
+      : "Объявление отправлено на доработку";
 
   const mutation = useMutation({
     mutationFn: mode === "reject" ? rejectAd : requestChangesAd,
@@ -21,12 +27,17 @@ export const ModerationModal = () => {
       closeModerationModal();
       setReason("");
       setComment("");
+      toast.success(() => (
+        <span>
+          <b>{message}</b>
+        </span>
+      ));
     },
   });
 
   const handleSubmit = () => {
     if (!reason) {
-      alert("Выберите пожалуйста причину!");
+      toast.error("Выберите пожалуйста причину!");
       return;
     }
 
