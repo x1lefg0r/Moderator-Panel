@@ -61,3 +61,5 @@ export const useAdsFilters = () => {
 
   return { filters, setFilter, handleSearch, resetFilters };
 };
+
+export type UseAdsFiltersReturn = ReturnType<typeof useAdsFilters>;
