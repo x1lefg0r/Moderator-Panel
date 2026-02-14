@@ -1,11 +1,12 @@
 import { useAdsFilters } from "../hooks/useAdsFilters";
 import { fetchAds } from "../api/ads";
-import { type AdStatus, categories } from "../types";
 import { AdCard } from "../components/ads/AdCard.tsx";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { AdFilter } from "../components/filters/AdFilter.tsx";
 
 const ListPage = () => {
-  const { filters, setFilter, handleSearch, resetFilters } = useAdsFilters();
+  const filtersHook = useAdsFilters();
+  const { filters, setFilter } = filtersHook;
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["ads", filters],
@@ -18,98 +19,7 @@ const ListPage = () => {
 
   return (
     <div className="container mx-auto p-4 flex gap-6">
-      <aside className="w-1/4 min-w-[250px] space-y-4">
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2">Поиск</h3>
-          <input
-            className="border p-2 w-full rounded"
-            placeholder="Название..."
-            defaultValue={filters.search}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2">Сортировка</h3>
-          <select
-            className="border p-2 w-full rounded"
-            value={filters.sort}
-            onChange={(e) => setFilter("sort", e.target.value)}
-          >
-            <option value="date_desc">Сначала новые</option>
-            <option value="date_asc">Сначала старые</option>
-            <option value="price_asc">Дешевле</option>
-            <option value="price_desc">Дороже</option>
-            <option value="priority_desc">По приоритету</option>
-          </select>
-        </div>
-
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2">Категория</h3>
-          <select
-            className="border p-2 w-full rounded"
-            value={filters.categoryId}
-            onChange={(e) => setFilter("categoryId", e.target.value)}
-          >
-            <option value="">Все категории</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2">Цена</h3>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              placeholder="От"
-              className="border p-1 w-1/2 rounded"
-              value={filters.minPrice}
-              onChange={(e) => setFilter("minPrice", e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="До"
-              className="border p-1 w-1/2 rounded"
-              value={filters.maxPrice}
-              onChange={(e) => setFilter("maxPrice", e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded shadow">
-          <h3 className="font-bold mb-2">Статус</h3>
-          {["pending", "approved", "rejected", "draft"].map((status) => (
-            <label
-              key={status}
-              className="flex items-center gap-2 cursor-pointer mb-1"
-            >
-              <input
-                type="checkbox"
-                checked={filters.status.includes(status as AdStatus)}
-                onChange={(e) => {
-                  const newStatus = e.target.checked
-                    ? [...filters.status, status]
-                    : filters.status.filter((s) => s !== status);
-                  setFilter("status", newStatus);
-                }}
-              />
-              <span className="capitalize">{status}</span>
-            </label>
-          ))}
-        </div>
-
-        <button
-          onClick={resetFilters}
-          className="w-full bg-gray-200 py-2 rounded"
-        >
-          Сбросить фильтры
-        </button>
-      </aside>
-
+      <AdFilter filtersHook={filtersHook} />
       <main className="w-3/4">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl font-bold">Объявления</h1>

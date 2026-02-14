@@ -54,14 +54,7 @@ const ItemPage = () => {
       <Toaster position="bottom-right" reverseOrder={true} />
       <AdNavigation />
       <AnimatePresence mode="wait">
-        <motion.div
-          key={id}
-          initial={motionObj.initial}
-          animate={motionObj.animate}
-          exit={motionObj.exit}
-          transition={motionObj.transition}
-          className={motionObj.className}
-        >
+        <motion.div key={id} {...motionObj}>
           <div className="lg:col-span-2 space-y-6">
             {isFetching ? (
               <>
