@@ -3,6 +3,7 @@ import { approveAd, fetchAdById } from "../../api/ads.ts";
 import { UseUIStore } from "../../store/useUIStore";
 import type { ModerationActionsProps } from "../../types.ts";
 import toast from "react-hot-toast";
+import { Button } from "../ui/Button.tsx";
 
 export const ModerationActions = ({ adId }: ModerationActionsProps) => {
   const queryClient = useQueryClient();
@@ -34,26 +35,32 @@ export const ModerationActions = ({ adId }: ModerationActionsProps) => {
     <div className="bg-white p-6 rounded shadow border-l-4 border-blue-500">
       <h3 className="font-bold text-lg mb-4">Действия модератора</h3>
       <div className="flex flex-col gap-3">
-        <button
+        <Button
           onClick={() => approveMutation.mutate(ad.id.toString())}
           disabled={approveMutation.isPending}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded transition"
+          variant="primary"
+          size="lg"
+          fullWidth
         >
           {approveMutation.isPending ? "Обработка..." : "Одобрить"}
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => openModerationModal("changes", adId!)}
-          className="w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold py-3 rounded transition"
+          variant="warning"
+          size="lg"
+          fullWidth
         >
           На доработку
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={() => openModerationModal("reject", adId!)}
-          className="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded transition"
+          variant="danger"
+          size="lg"
+          fullWidth
         >
           Отклонить
-        </button>
+        </Button>
       </div>
     </div>
   );
