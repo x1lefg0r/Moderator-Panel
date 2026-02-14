@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import type { UseAdsFiltersReturn } from "./hooks/useAdsFilters";
+
 export type AdStatus = "pending" | "approved" | "rejected" | "draft";
 export type AdPriority = "normal" | "urgent";
 
@@ -143,4 +146,28 @@ export interface LoadingStateProps {
 export interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
+}
+
+export interface AdFilterProps {
+  filtersHook: UseAdsFiltersReturn;
+}
+
+export interface FiltersProps {
+  value: string;
+  onChange: (key: keyof FilterState, value: string) => void;
+}
+
+export interface FilterSectionProps {
+  title: string;
+  children: ReactNode;
+}
+
+export interface ButtonProps {
+  children: ReactNode;
+  onClick: () => void;
+  variant?: "primary" | "secondary" | "danger" | "warning" | "ghost";
+  size?: "sm" | "md" | "lg";
+  disabled?: boolean;
+  fullWidth?: boolean;
+  className?: string;
 }
