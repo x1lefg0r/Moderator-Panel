@@ -3,14 +3,14 @@ const path = require("path");
 
 const cors = require("cors");
 
+const app = express();
+const PORT = process.env.PORT || 3001;
+
 app.use(
   cors({
     origin: "https://x1lefg0r.github.io",
   }),
 );
-
-const app = express();
-const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.static("public"));
